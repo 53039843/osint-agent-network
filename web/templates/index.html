@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OSINT Agent Network Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <style>
+        body { background-color: #f8f9fa; }
+        .card { border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        .stat-card { border-left: 4px solid #0d6efd; }
+        .stat-card.success { border-left-color: #198754; }
+        .stat-card.warning { border-left-color: #ffc107; }
+        .stat-card.danger { border-left-color: #dc3545; }
+        .table-hover tbody tr:hover { background-color: #f1f3f5; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="#"><i class="bi bi-shield-lock-fill me-2"></i>OSINT Agent Network</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav ms-auto">
+                <li class="nav-item"><a class="nav-link active" href="#">Dashboard</a></li>
+                <li class="nav-item"><a class="nav-link" href="#">Scans</a></li>
+                <li class="nav-item"><a class="nav-link" href="#">Threat Actors</a></li>
+                <li class="nav-item"><a class="nav-link" href="/docs">API Docs</a></li>
+            </ul>
+        </div>
+    </div>
+</nav>
+
+<div class="container">
+    <!-- Header Stats -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card stat-card p-3">
+                <h6 class="text-muted mb-1">Total Scans</h6>
+                <h3 class="mb-0" id="stat-total-scans">1,245</h3>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stat-card success p-3">
+                <h6 class="text-muted mb-1">Verified Threats</h6>
+                <h3 class="mb-0" id="stat-verified">8,932</h3>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stat-card warning p-3">
+                <h6 class="text-muted mb-1">Pending Tasks</h6>
+                <h3 class="mb-0" id="stat-pending">12</h3>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stat-card danger p-3">
+                <h6 class="text-muted mb-1">Active Alerts</h6>
+                <h3 class="mb-0" id="stat-alerts">3</h3>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="row">
+        <!-- New Scan Form -->
+        <div class="col-md-4">
+            <div class="card p-4">
+                <h5 class="mb-3"><i class="bi bi-play-circle me-2"></i>New Analysis Task</h5>
+                <form id="scanForm">
+                    <div class="mb-3">
+                        <label class="form-label">Target Keyword / APT</label>
+                        <input type="text" class="form-control" id="targetInput" placeholder="e.g. APT29 SolarWinds" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Sources</label>
+                        <select class="form-select" multiple id="sourcesSelect">
+                            <option value="twitter" selected>Twitter/X</option>
+                            <option value="reddit" selected>Reddit</option>
+                            <option value="pastebin" selected>Pastebin</option>
+                            <option value="darkweb" selected>DarkWeb Mirrors</option>
+                        </select>
+                        <small class="text-muted">Hold Ctrl/Cmd to select multiple</small>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100" id="submitBtn">
+                        Start Pipeline
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Recent Scans Table -->
+        <div class="col-md-8">
+            <div class="card p-4">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="mb-0"><i class="bi bi-list-task me-2"></i>Recent Scans</h5>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="loadScans()"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Target</th>
+                                <th>Status</th>
+                                <th>Time</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="scansTableBody">
+                            <!-- Populated by JS -->
+                            <tr>
+                                <td colspan="4" class="text-center text-muted">Loading...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    // Mock JS for frontend demonstration
+    document.getElementById('scanForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById('submitBtn');
+        const target = document.getElementById('targetInput').value;
+        
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Submitting...';
+        
+        try {
+            const res = await fetch('/api/v1/scans/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ target: target })
+            });
+            
+            if (res.ok) {
+                alert('Task submitted successfully!');
+                document.getElementById('targetInput').value = '';
+                loadScans();
+            } else {
+                alert('Failed to submit task.');
+            }
+        } catch (err) {
+            console.error(err);
+            alert('Error connecting to API.');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = 'Start Pipeline';
+        }
+    });
+
+    async function loadScans() {
+        const tbody = document.getElementById('scansTableBody');
+        try {
+            const res = await fetch('/api/v1/scans/?limit=5');
+            if (res.ok) {
+                const data = await res.json();
+                if (data.scans && data.scans.length > 0) {
+                    tbody.innerHTML = data.scans.map(scan => `
+                        <tr>
+                            <td><strong>${scan.target}</strong><br><small class="text-muted">${scan.task_id.substring(0,8)}...</small></td>
+                            <td><span class="badge bg-${scan.status === 'completed' ? 'success' : 'warning'}">${scan.status}</span></td>
+                            <td>${new Date(scan.created_at).toLocaleString()}</td>
+                            <td><button class="btn btn-sm btn-outline-primary">View Report</button></td>
+                        </tr>
+                    `).join('');
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">No recent scans found.</td></tr>';
+                }
+            }
+        } catch (err) {
+            console.error(err);
+        }
+    }
+    
+    // Initial load
+    loadScans();
+</script>
+</body>
+</html>

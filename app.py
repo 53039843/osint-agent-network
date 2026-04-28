@@ -25,6 +25,18 @@ app.add_middleware(
 app.include_router(scans.router)
 app.include_router(iocs.router)
 
+from api.routers import web
+from fastapi.staticfiles import StaticFiles
+import os
+
+# Mount static files
+static_dir = os.path.join(os.path.dirname(__file__), "web", "static")
+os.makedirs(static_dir, exist_ok=True)
+app.mount("/static", StaticFiles(directory=static_dir), name="static")
+
+# Mount web UI router
+app.include_router(web.router)
+
 
 @app.get("/health", tags=["Health"])
 async def health_check():
